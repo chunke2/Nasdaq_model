@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "PowerShell(python -c \"import sys; sys.path.insert\\(0, '.'\\); import src; print\\('Import OK'\\)\")",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "PowerShell(python tests/end_to_end_test.py)"
     ]
   }
 }

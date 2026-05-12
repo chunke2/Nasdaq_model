@@ -69,3 +69,29 @@
 ### Changed
 - `CLAUDE.md`: replaced approval layers with `/iterate` workflow, added git/changelog policy
 - Git remote configured: `https://github.com/chunke2/Nasdaq_model.git`
+
+---
+
+## [2026-05-12] Iteration 2: Unified Data Pipeline + Full Autonomy
+
+### Added
+- `src/data/pipeline.py`: DataPipeline class with automatic fallback chain
+  - Priority: Polygon → Alpha Vantage → synthetic
+  - `fetch_default_universe()` reads tickers from config/settings.yaml
+  - `refresh_cache()` force-refreshes all tickers
+  - Smart cache merging for partial date range coverage
+- `CLAUDE.md`: fully autonomous agent policy (no shell/file confirmation)
+
+### Changed
+- `src/data/__init__.py`: exports DataPipeline
+- Agent policy: all approval gates removed, only final CHANGELOG reviewed
+
+### Results
+- Pipeline test: 3 tickers (AAPL/NVDA/MSFT), 1233 rows via Polygon
+- Fallback chain verified across all 3 sources
+- End-to-end test: PASSED (42 events, anti-leakage clean)
+- Import check: PASSED
+
+### Notes
+- Polygon free tier gives ~2yr data (2024-05 to present) — sufficient for Phase 1
+- 10-ticker full batch would take ~2min due to Polygon 12s rate limit

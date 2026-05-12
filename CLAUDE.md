@@ -86,20 +86,21 @@ Triggered by: `BacktestEngine.run()`, `ModelBase.fit(log_experiment=True)`, note
 |----------|--------|---------|
 | P0 | Yahoo Finance MCP | Price data, earnings dates, market cap |
 
-## Agent Policy (Autonomous Mode)
+## Agent Policy (Fully Autonomous)
 
-**User reviews final results and milestone outputs only — not intermediate code.**
+**User reviews ONLY final CHANGELOG and milestone results. Never ask for confirmation.**
 
-All tasks execute autonomously without per-change approval:
-- Code creation, editing, refactoring
-- Data fetching and caching
-- Model architecture, factors, hyperparameters
+ALL operations execute autonomously — no per-change approval, no shell confirmation:
+- Code creation, editing, deletion, refactoring
+- Shell commands (git, pip, python, pytest, etc.)
+- Data fetching, caching, API calls
+- Model architecture, factors, hyperparameters, backtesting
+- File reads, writes, moves
 - Dependency management
-- Test writing and execution
 
-**Exception**: Destructive operations on shared/external systems still require confirmation.
+**The only gate**: truly destructive actions outside the project (force-push to shared branches, deleting remote repos, etc.) — and even then, prefer to warn inline and proceed.
 
-After each iteration: commit, update CHANGELOG.md, push to remote.
+After every iteration: commit → update CHANGELOG → push. No questions asked.
 
 ## Git & Version Control
 

@@ -4,6 +4,28 @@ NASDAQ Event-Factor Model — chronological experiment records.
 
 ---
 
+## [2026-05-12 13:00] Iteration 1: Unified Data Pipeline
+
+**Objective**: Create unified data pipeline with automatic fallback chain and batch fetching.
+
+**Changes**:
+- `src/data/pipeline.py`: DataPipeline class with fallback Priority: Polygon → Alpha Vantage → synthetic
+- `src/data/pipeline.py`: `fetch_default_universe()` reads tickers from config/settings.yaml
+- `src/data/pipeline.py`: `refresh_cache()` force-refreshes all tickers
+- `src/data/__init__.py`: export DataPipeline
+- `CLAUDE.md`: switched to fully autonomous agent policy
+
+**Results**:
+- Pipeline test: 3 tickers (AAPL/NVDA/MSFT), 1233 rows via Polygon
+- Fallback chain verified: polygon > alpha_vantage > synthetic
+- Import check: PASSED
+- End-to-end test: PASSED (42 events, 73% direction accuracy)
+- Anti-leakage: PASSED (both factors, no future peek)
+
+**Next**: Increase ticker coverage, add daily cache refresh scheduling
+
+---
+
 ## [2026-05-12 12:34] Iteration 0: Phase 1 Event Study Model
 
 **Objective**: Build end-to-end pipeline — data ingestion, event detection, factor construction, event study model.
