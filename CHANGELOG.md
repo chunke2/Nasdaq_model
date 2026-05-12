@@ -95,3 +95,33 @@
 ### Notes
 - Polygon free tier gives ~2yr data (2024-05 to present) — sufficient for Phase 1
 - 10-ticker full batch would take ~2min due to Polygon 12s rate limit
+
+---
+
+## [2026-05-12] Iteration 3: Backtest Engine + Performance Metrics
+
+### Added
+- `src/backtest/engine.py`: BacktestEngine class
+  - Event-driven walk-forward simulation
+  - Position sizing (max_position_pct)
+  - Transaction cost model (bps-based)
+  - Daily mark-to-market tracking
+  - Auto experiment logging on run()
+- `src/backtest/metrics.py`: comprehensive performance metrics
+  - Sharpe ratio, Max drawdown, Calmar ratio
+  - Hit rate, Profit factor, Annual return/vol
+  - Beta, Information ratio (vs benchmark)
+- `src/backtest/__init__.py`: exports BacktestEngine + metrics
+- `tests/test_backtest.py`: integration test
+
+### Results
+- **28 trades** executed on synthetic data (3 tickers, 2024-2025)
+- Hit rate: **60.7%**, Profit factor: **1.84**
+- POSITIVE/NEGATIVE direction: both ~60% hit rate
+- End-to-end regression: PASSED (42 events, 73% accuracy)
+- Anti-leakage: PASSED
+
+### Notes
+- Synthetic data returns are amplified due to built-in reversal effect
+- Real-data backtest will show more realistic metrics
+- Next: real earnings calendar, macro factors, walk-forward split

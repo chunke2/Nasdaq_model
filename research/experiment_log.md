@@ -49,3 +49,26 @@ NASDAQ Event-Factor Model — chronological experiment records.
 **Next**: Real earnings calendar (not proxy), macro factors, backtest engine
 
 ---
+
+## [2026-05-12 13:15] Iteration 3: Backtest Engine
+
+**Objective**: Build event-driven backtest engine with full performance metrics.
+
+**Changes**:
+- `src/backtest/engine.py`: BacktestEngine — event-driven walk-forward simulation, position sizing, transaction costs, MTM, experiment logging
+- `src/backtest/metrics.py`: Sharpe, MaxDD, hit rate, profit factor, Calmar, annual return/vol, beta, information ratio
+- `src/backtest/__init__.py`: exports BacktestEngine + metrics
+- `tests/test_backtest.py`: integration test with synthetic data
+
+**Results**:
+- 28 trades executed across 3 tickers (synthetic data, 2024-2025)
+- Hit rate: 60.7%, Profit factor: 1.84
+- POSITIVE direction: 60% hit rate, NEGATIVE: 61.5%
+- Import check: PASSED
+- End-to-end regression: PASSED (42 events, 73% accuracy unchanged)
+- Backtest test: PASSED
+- Anti-leakage: PASSED (no future peek)
+
+**Next**: Real earnings calendar, macro factors, walk-forward train/test split
+
+---
