@@ -1,5 +1,5 @@
 # Data directories (local cache)
-data/
+/data/
 
 # Experiment outputs
 experiments/
