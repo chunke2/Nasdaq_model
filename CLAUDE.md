@@ -129,14 +129,20 @@ Update `CHANGELOG.md` after every iteration. Format:
 - caveats, next steps, open questions
 ```
 
-## Suggested Skills
+## Iteration Workflow — `/iterate`
 
-| Skill | Trigger | Purpose |
-|-------|---------|---------|
-| `refresh-data` | `/refresh-data` or scheduled | Pull latest data, update local cache |
-| `run-backtest` | `/run-backtest` | Run backtest with current model, output report |
-| `factor-review` | `/factor-review` or weekly | Audit factors for leakage + statistical significance |
-| `model-train` | `/model-train` | Train model with current config, save artifacts |
+Complete development cycle via a single command. Skill definition: `.claude/skills/iteration-loop.md`
+
+```
+/iterate <task description>
+```
+
+Automatically runs: **Plan → Code → Verify → Log → Commit → Changelog → Push**
+
+- No user confirmation at any step
+- Verification includes: import check + end-to-end test + anti-leakage audit
+- Failures are fixed before pushing
+- Research log auto-appended to `research/experiment_log.md`
 
 ## Scheduled Tasks
 - Data refresh: every trading day after 17:00 ET

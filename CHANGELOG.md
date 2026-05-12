@@ -56,3 +56,16 @@
 - Phase 1 complete: event study model can analyze NASDAQ events and predict direction
 - Next: add real earnings calendar (not proxy), macro factors, backtest engine
 - Need to investigate Polygon.io earnings calendar endpoint for real event dates
+
+---
+
+## [2026-05-12] Iteration 1: Automated Workflow + Git Integration
+
+### Added
+- `.claude/skills/iteration-loop.md`: `/iterate` skill — full automated Plan→Code→Verify→Log→Commit→Changelog→Push cycle
+- `research/experiment_log.md`: chronological experiment log
+- Agent policy changed from layered-approval to full autonomous mode
+
+### Changed
+- `CLAUDE.md`: replaced approval layers with `/iterate` workflow, added git/changelog policy
+- Git remote configured: `https://github.com/chunke2/Nasdaq_model.git`

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python -c \"import sys; sys.path.insert\\(0, '.'\\); import src; print\\('Import OK'\\)\")",
+      "PowerShell(git *)"
+    ]
+  }
+}
