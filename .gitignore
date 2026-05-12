@@ -1,0 +1,51 @@
+# Data directories (local cache)
+data/
+
+# Experiment outputs
+experiments/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — do NOT commit
+config/secrets.yaml
+.env
+*.env
+
+# Mypy cache
+.mypy_cache/
+
+# Ruff cache
+.ruff_cache/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Poetry lock (use pip, not poetry now)
+poetry.lock

@@ -1,0 +1,57 @@
+# NASDAQ Event-Factor Model — global configuration
+# All parameters read from here. No hardcoding allowed.
+
+data:
+  default_start: "2020-01-01"
+  default_end: "2025-12-31"
+  cache_max_age_hours: 24
+  tickers:
+    nasdaq_sample:
+      - AAPL
+      - MSFT
+      - NVDA
+      - GOOGL
+      - AMZN
+      - META
+      - TSLA
+      - AVGO
+      - COST
+      - NFLX
+
+events:
+  earnings:
+    window_before_days: 30
+    window_after_days: 30
+  macro:
+    enabled_sources:
+      - fomc
+      - cpi
+      - employment
+
+factors:
+  market:
+    lookback_window: 60          # trading days for beta estimation
+    benchmark: "^IXIC"           # NASDAQ Composite
+
+models:
+  event_study:
+    estimation_window: 120       # trading days before event window
+    event_window: [-5, 5]        # days relative to event date
+  regression:
+    train_split_ratio: 0.7
+  ml:
+    cv_folds: 5
+    walk_forward_window: 252     # 1 year of trading days
+
+backtest:
+  initial_capital: 1_000_000
+  transaction_cost_bps: 10       # basis points
+  benchmark: "^IXIC"
+
+logging:
+  level: INFO
+  file: null                     # set to path for file output
+
+experiment:
+  root: experiments/
+  auto_log: true
