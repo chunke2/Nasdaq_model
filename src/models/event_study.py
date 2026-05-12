@@ -9,8 +9,6 @@ Classic event study following MacKinlay (1997):
 
 from __future__ import annotations
 
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -205,25 +203,17 @@ class EventStudyModel(ModelBase):
         return [float(x) for x in ar]
 
     def predict(self, events_df: pd.DataFrame) -> pd.Series:
-        """Predict direction for each event based on CAR sign from study.
+        """DEPRECATED: EventStudyModel cannot predict forward returns.
 
-        Returns Series of "POSITIVE" / "NEGATIVE" per event index.
+        This method always returns NEUTRAL. EventStudyModel is an analysis
+        tool (CAR computation, t-test), not a predictive model. Use
+        MultiFactorModel for direction predictions.
         """
-        if not self._results or not self._results.get("events"):
-            return pd.Series(["NEUTRAL"] * len(events_df), index=events_df.index)
-
-        # Map past event dates to directions
-        past_dirs: dict[Tuple[str, pd.Timestamp], str] = {}
-        for e in self._results["events"]:
-            key = (e["ticker"], e["date"])
-            past_dirs[key] = e["direction"]
-
-        predictions: list[str] = []
-        for _, evt in events_df.iterrows():
-            key = (evt["ticker"], pd.Timestamp(evt["date"]))
-            predictions.append(past_dirs.get(key, "NEUTRAL"))
-
-        return pd.Series(predictions, index=events_df.index)
+        logger.warning(
+            "EventStudyModel.predict() is deprecated — always returns NEUTRAL. "
+            "Use MultiFactorModel for forward predictions."
+        )
+        return pd.Series(["NEUTRAL"] * len(events_df), index=events_df.index)
 
     @property
     def results(self) -> dict:

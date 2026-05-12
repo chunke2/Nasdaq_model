@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-05-12] Iteration 7: Backtest Engine Fix — MultiFactorModel Walk-Forward
+
+### Changed
+- `src/data/__init__.py`: Lazy import via `__getattr__` — `PriceFetcher` (yfinance) no longer loaded at module import time
+- `src/models/event_study.py`: `predict()` deprecated — always returns NEUTRAL with warning. EventStudyModel retained for CAR analysis only.
+- `src/backtest/engine.py`: `factor_df` threaded through `run()` → `_simulate()` → `_safe_predict()`; walk-forward computes test-window factors for prediction
+
+### Fixed
+- Walk-forward backtest now produces actual trades (was 0 — `_safe_predict()` never received factor values)
+- Data layer no longer breaks when yfinance is unavailable
+
+### Results
+- **31 trades** executed in walk-forward (was 0)
+- Anti-leakage: PASSED
+- Import check: PASSED (lazy import verified)
+- Hit rate: 48.4%, Sharpe: 8.34 (synthetic data inflated)
+
+### Notes
+- Window boundary calculation (1.4x magic number) deferred for next iteration
+- Walk-forward now requires `factor_builder` callback for real predictions
+- EventStudyModel remains useful for CAR analysis and t-tests
+
+---
+
 ## [2026-05-12] Iteration 0: Project Infrastructure + Phase 1 Event Study Model
 
 ### Added

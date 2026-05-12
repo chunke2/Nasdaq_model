@@ -54,6 +54,8 @@ class BacktestEngine:
         model: ModelBase,
         price_df: pd.DataFrame,
         events_df: pd.DataFrame,
+        *,
+        factor_df: pd.DataFrame | None = None,
     ) -> dict:
         """Execute event-driven backtest.
 
@@ -61,6 +63,7 @@ class BacktestEngine:
             model: A fitted model with predict() method.
             price_df: Price data with [ticker, adj_close] and DatetimeIndex.
             events_df: Detected events with [date, ticker, event_type].
+            factor_df: Factor values for prediction (required for MultiFactorModel).
 
         Returns:
             dict with keys: equity (pd.Series), trades (pd.DataFrame), metrics (dict).
@@ -72,7 +75,7 @@ class BacktestEngine:
         events = events_df.sort_values("date").copy()
         events["effective_date"] = pd.to_datetime(events["date"]).dt.normalize()
 
-        trades, equity_curve = self._simulate(events, price_df, model)
+        trades, equity_curve = self._simulate(events, price_df, model, factor_df)
 
         self.equity = equity_curve
         self.trades = trades
@@ -163,11 +166,17 @@ class BacktestEngine:
                 # EventStudyModel: fit on price + events directly
                 model.fit(train_prices, train_ev)
 
-            # Run backtest on test window
+            # Slice test prices
             test_prices = price_df[
                 (price_df.index >= test_start) & (price_df.index <= test_end)
             ]
-            window_result = self.run(model, test_prices, test_ev)
+
+            # Compute factors for test window (for prediction)
+            f_test: pd.DataFrame | None = None
+            if factor_builder is not None:
+                f_test = factor_builder(test_prices, test_ev)
+
+            window_result = self.run(model, test_prices, test_ev, factor_df=f_test)
             trades_w = window_result.get("trades", pd.DataFrame())
             equity_w = window_result.get("equity", pd.Series(dtype=float))
 
@@ -215,6 +224,7 @@ class BacktestEngine:
         events: pd.DataFrame,
         price_df: pd.DataFrame,
         model: ModelBase,
+        factor_df: pd.DataFrame | None = None,
     ) -> tuple[pd.DataFrame, pd.Series]:
         """Walk forward through events, executing trades."""
         cash = self.initial_capital
@@ -282,8 +292,8 @@ class BacktestEngine:
             day_events = events[events["effective_date"] == day]
             for _, evt in day_events.iterrows():
                 ticker = evt["ticker"]
-                # Predict direction using model
-                prediction = self._safe_predict(model, evt)
+                # Predict direction using model (with factor values if available)
+                prediction = self._safe_predict(model, evt, factor_df=factor_df)
                 if prediction in ("POSITIVE", "NEGATIVE"):
                     # Size position
                     pos_capital = cash * self.max_position_pct
