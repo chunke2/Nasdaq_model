@@ -130,20 +130,17 @@ Update `CHANGELOG.md` after every iteration. Format:
 - caveats, next steps, open questions
 ```
 
-## Iteration Workflow — `/iterate`
+## Iteration Workflow
 
-Complete development cycle via a single command. Skill definition: `.claude/skills/iteration-loop.md`
+**Trigger**: When user says "迭代", "开始迭代", "迭代:<任务>", or describes a task to execute:
 
-```
-/iterate <task description>
-```
-
-Automatically runs: **Plan → Code → Verify → Log → Commit → Changelog → Push**
+Immediately execute full cycle without asking: **Plan → Code → Verify → Log → Commit → Changelog → Push**
 
 - No user confirmation at any step
-- Verification includes: import check + end-to-end test + anti-leakage audit
-- Failures are fixed before pushing
-- Research log auto-appended to `research/experiment_log.md`
+- Verification: import check + end-to-end test + anti-leakage audit
+- Failures → fix → re-verify → push
+- Research log: `research/experiment_log.md`
+- Note: Claude Code does NOT support custom slash commands; trigger phrases replace `/iterate`
 
 ## Scheduled Tasks
 - Data refresh: every trading day after 17:00 ET
