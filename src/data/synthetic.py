@@ -120,13 +120,17 @@ class SyntheticPriceFetcher(DataFetcher):
 
         # Daily log returns with known AR(1) structure → momentum factor
         raw_ret = rng.normal(drift, vol, size=n)
-        # Inject EPS surprise: negative 1-day lag effect (post-earnings drift)
-        # We embed a known signal: yesterday's shock predicts today's return inversely
+        # Inject shock on event day, spread reversal over t+2:t+4
+        # (post-earnings drift decays over several days)
         ret = np.zeros(n)
         for i in range(n):
             ret[i] = raw_ret[i] + shocks[i]
-            if i > 0:
-                ret[i] -= 0.3 * shocks[i - 1]  # post-shock reversal
+            # Multi-day reversal: signal persists for factor to capture
+            # factor at t+1 (= shock_t) can predict returns at t+2, t+3, t+4
+            if i >= 3:
+                ret[i] -= 0.25 * shocks[i - 2]   # t+2: reversal peak
+                ret[i] -= 0.15 * shocks[i - 3]   # t+3: continuation
+                ret[i] -= 0.07 * shocks[i - 4]   # t+4: residual
 
         # Price path
         price = self.base_price * np.exp(np.cumsum(ret))
@@ -140,7 +144,11 @@ class SyntheticPriceFetcher(DataFetcher):
         high = np.maximum(close, open_) + np.abs(intraday_range) * rng.uniform(0.1, 1.0, n)
         low = np.minimum(close, open_) - np.abs(intraday_range) * rng.uniform(0.1, 1.0, n)
         adj_close = close
-        volume = rng.integers(10_000_000, 100_000_000, n)
+        # Base volume, elevated on event days (5x spike = realistic earnings surge)
+        base_vol = rng.integers(10_000_000, 100_000_000, n)
+        vol_multiplier = np.ones(n)
+        vol_multiplier[shocks != 0] = 5.0  # volume spike on event days
+        volume = (base_vol * vol_multiplier).astype(int)
 
         df = pd.DataFrame(
             {

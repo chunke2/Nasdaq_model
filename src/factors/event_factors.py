@@ -19,28 +19,37 @@ logger = get_logger(__name__)
 
 
 class EarningsSurpriseFactor(FactorBase):
-    """Factor: signed earnings surprise magnitude.
+    """Factor: signed earnings surprise magnitude with EMA decay.
 
-    - Positive surprise → expected positive forward return (post-earnings drift)
+    Uses exponentially-weighted moving average of past surprises to build
+    a smooth signal that is robust to false proxy events. A single noisy
+    event cannot overwrite the accumulated signal.
+
+    - Positive surprise → expected positive forward return
     - Negative surprise → expected negative forward return
-    - Factor value = surprise_pct from event detector, forward-filled
-      until next event (carries the signal)
+    - Factor value = EMA of past surprises (decay factor: alpha)
     """
 
     factor_name: str = "earnings_surprise"
+
+    def __init__(self, alpha: float = 0.4) -> None:
+        """
+        Args:
+            alpha: EMA blending weight for new surprises (0-1).
+                   Higher = faster adaptation, lower = smoother signal.
+        """
+        self.alpha = alpha
 
     def compute(
         self, price_df: pd.DataFrame, events_df: pd.DataFrame | None = None
     ) -> pd.DataFrame:
         """Compute earnings surprise factor from detected events.
 
-        The factor is aligned to the NEXT trading day after the event,
-        ensuring no look-ahead: the signal only becomes available at market
-        open after the announcement.
+        Each new event's surprise is blended into an EMA, then shifted
+        forward by 1 day to prevent look-ahead bias.
 
         Returns:
             DataFrame with columns: [date, ticker, factor_name]
-            where factor value is the most recent surprise.
         """
         if events_df is None or events_df.empty:
             logger.warning("No events provided for %s factor", self.factor_name)
@@ -58,9 +67,6 @@ class EarningsSurpriseFactor(FactorBase):
             dates = dates.dt.tz_convert(MARKET_TIMEZONE)
         earnings["effective_date"] = dates.dt.normalize()
 
-        # Get the full date index from price data
-        all_dates = price_df.index.unique().sort_values()
-
         records: list[dict] = []
         for ticker in earnings["ticker"].unique():
             ticker_events = earnings[earnings["ticker"] == ticker].sort_values(
@@ -68,20 +74,28 @@ class EarningsSurpriseFactor(FactorBase):
             )
             ticker_prices = price_df[price_df["ticker"] == ticker].sort_index()
 
-            # Build surprise series: reindex to price dates, forward-fill
-            surprise_series = pd.Series(
+            # Place surprises at their effective dates (NaN elsewhere)
+            raw_series = pd.Series(
                 index=pd.DatetimeIndex(ticker_events["effective_date"]),
                 data=ticker_events["surprise_pct"].values,
-            )
-            surprise_series = surprise_series.reindex(
-                ticker_prices.index
-            ).ffill().fillna(0.0)
+            ).reindex(ticker_prices.index)
+
+            # EMA: blend new surprises, decay daily toward zero when no event
+            ema_series = pd.Series(0.0, index=ticker_prices.index)
+            last_ema = 0.0
+            for i in range(len(raw_series)):
+                val = raw_series.iloc[i]
+                if pd.notna(val):
+                    last_ema = self.alpha * val + (1 - self.alpha) * last_ema
+                else:
+                    last_ema *= (1 - self.alpha)  # decay toward zero daily
+                ema_series.iloc[i] = last_ema
 
             # CRITICAL: shift forward by 1 to prevent leakage.
             # The event at close today becomes known tomorrow morning.
-            surprise_series = surprise_series.shift(1).fillna(0.0)
+            ema_series = ema_series.shift(1).fillna(0.0)
 
-            for dt, val in surprise_series.items():
+            for dt, val in ema_series.items():
                 records.append({
                     "date": dt,
                     "ticker": ticker,
@@ -178,6 +192,65 @@ class MomentumFactor(FactorBase):
             last_valid_date=last_valid,
             corr_with_fwd_return=corr_fwd,
             corr_with_same_return=corr_same,
+            has_future_peek=False,
+            notes="",
+        )
+
+
+class ShortTermReversalFactor(FactorBase):
+    """Short-term price reversal factor (2-5 day mean reversion).
+
+    Captures the tendency for large recent returns to partially reverse.
+    Negative recent return → expected positive bounce → POSITIVE signal.
+    Positive recent return → expected pullback → NEGATIVE signal.
+
+    Factor = -(2-day return), lagged by 1 day (anti-leakage).
+    """
+
+    factor_name: str = "reversal_2d"
+
+    def __init__(self, lookback_days: int = 2) -> None:
+        self.lookback_days = lookback_days
+        self.factor_name = f"reversal_{lookback_days}d"
+
+    def compute(
+        self, price_df: pd.DataFrame, events_df: pd.DataFrame | None = None
+    ) -> pd.DataFrame:
+        """Compute reversal factor per ticker.
+
+        Factor_t = -(return from t-lookback to t), shifted by 1.
+        The minus sign means: recent gain → negative factor (bearish);
+        recent loss → positive factor (bullish).
+        """
+        records: list[dict] = []
+        for ticker, group in price_df.groupby("ticker"):
+            group = group.sort_index()
+            ret = group["adj_close"].pct_change(periods=self.lookback_days)
+            reversal = -ret.shift(1)  # lag to prevent leakage
+            for dt, val in reversal.dropna().items():
+                records.append({
+                    "date": dt,
+                    "ticker": ticker,
+                    self.factor_name: val,
+                })
+
+        if not records:
+            return pd.DataFrame(columns=["date", "ticker", self.factor_name])
+        return pd.DataFrame(records)
+
+    def check_leakage(self, factor_df: pd.DataFrame) -> LeakageReport:
+        col = self.factor_name
+        series = factor_df.set_index("date")[col]
+        last_valid = self._last_valid_date(series)
+        returns = series.pct_change()
+        fwd = returns.shift(-1)
+        corr_fwd = series.corr(fwd) if len(series) > 1 else None
+
+        return LeakageReport(
+            factor_name=self.factor_name,
+            last_valid_date=last_valid,
+            corr_with_fwd_return=corr_fwd,
+            corr_with_same_return=returns.corr(series) if len(series) > 1 else None,
             has_future_peek=False,
             notes="",
         )

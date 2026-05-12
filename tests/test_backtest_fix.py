@@ -6,7 +6,7 @@ import pandas as pd
 
 from src.data.synthetic import SyntheticPriceFetcher
 from src.events.earnings import EarningsSurpriseDetector
-from src.factors.event_factors import EarningsSurpriseFactor, MomentumFactor
+from src.factors.event_factors import EarningsSurpriseFactor, MomentumFactor, ShortTermReversalFactor
 from src.models.regression import MultiFactorModel
 from src.backtest.engine import BacktestEngine
 from src.backtest import metrics as bt_metrics
@@ -46,18 +46,21 @@ print(f"[1] Data: {len(df)} rows, {df.ticker.nunique()} tickers")
 
 # ── 2. Detect events ──
 detector = EarningsSurpriseDetector(
-    return_threshold_pct=2.0, volume_multiple=1.2
+    return_threshold_pct=3.0, volume_multiple=1.5
 )
 events = detector.detect(df)
 print(f"[2] Events: {len(events)}")
 
 # ── 3. Factor builder function (used by walk-forward) ──
 def build_factors(prices: pd.DataFrame, evts: pd.DataFrame) -> pd.DataFrame:
-    sf = EarningsSurpriseFactor()
+    sf = EarningsSurpriseFactor(alpha=0.4)
     f_surprise = sf.compute(prices, evts)
     mom = MomentumFactor(20)
     f_momentum = mom.compute(prices)
+    rev = ShortTermReversalFactor(2)
+    f_reversal = rev.compute(prices)
     merged = f_surprise.merge(f_momentum, on=["date", "ticker"], how="outer")
+    merged = merged.merge(f_reversal, on=["date", "ticker"], how="outer")
     return merged.fillna(0.0)
 
 # ── 3a. Verify factors on full data ──
