@@ -1,9 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(python -c \"import sys; sys.path.insert\\(0, '.'\\); import src; print\\('Import OK'\\)\")",
       "PowerShell(git *)",
-      "PowerShell(python tests/end_to_end_test.py)"
+      "PowerShell(python *)",
+      "PowerShell(pip *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Start-Sleep *)",
+      "PowerShell(Get-ChildItem *)",
+      "Bash(git *)",
+      "mcp__yahoo-finance"
     ]
   }
 }

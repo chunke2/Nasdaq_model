@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "yahoo-finance": {
+      "description": "Yahoo Finance — NASDAQ price data, earnings dates, market cap",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-yahoo-finance"],
+      "env": {}
+    }
+  }
+}
