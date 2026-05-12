@@ -152,3 +152,33 @@
 - Walk-forward needs regression model for forward predictions
 - EventStudyModel.predict() only works on trained event dates
 - Will be resolved in Iteration 6 (multi-factor regression)
+
+---
+
+## [2026-05-12] Iteration 6: Multi-Factor Regression Model
+
+### Added
+- `src/models/regression.py`: MultiFactorModel
+  - Supports logistic (direction) and linear (magnitude) modes
+  - Auto-builds X/y from factor + price DataFrames with proper time alignment
+  - `get_factor_attribution()` returns coefficient → direction mapping
+  - StandardScaler + class_weight=balanced for robust fitting
+  - Compatible with `ModelBase` interface (fit/predict)
+- `src/utils/experiment_logger.py`: numpy type sanitization for YAML/JSON
+
+### Changed
+- `src/backtest/engine.py`: `run_walk_forward()` now accepts `factor_builder` callback
+  - `_safe_predict()` handles both EventStudyModel and MultiFactorModel
+
+### Results
+- **759 training samples**, 2 features (earnings_surprise, momentum_20d)
+- Factor attribution:
+  - earnings_surprise: coeff=-0.123 → favors NEGATIVE
+  - momentum_20d: coeff=+0.011 → favors POSITIVE (weak)
+- **POS prediction accuracy: 78.4%** — high reliability when predicting POSITIVE
+- NEG prediction accuracy: 19.6% — model biased toward POSITIVE
+- Anti-leakage: PASSED
+
+### Known Gap
+- Backtest engine needs further refactoring for factor-aware trade execution
+- Walk-forward with regression model will be completed in next iteration

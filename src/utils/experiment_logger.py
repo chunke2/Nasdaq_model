@@ -13,7 +13,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import yaml
+
+
+def _sanitize(obj: Any) -> Any:
+    """Convert numpy types to native Python for YAML/JSON serialization."""
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize(x) for x in obj]
+    return obj
 
 EXPERIMENTS_ROOT: Path = Path("experiments")
 
@@ -50,9 +66,10 @@ class ExperimentLogger:
         self._exp_dir.mkdir(parents=True, exist_ok=True)
         (self._exp_dir / "artifacts").mkdir(exist_ok=True)
 
-        # Save config
+        # Save config (sanitize numpy types for YAML)
+        config_clean = _sanitize(config)
         with open(self._exp_dir / "config.yaml", "w", encoding="utf-8") as f:
-            yaml.safe_dump(config, f, default_flow_style=False, allow_unicode=True)
+            yaml.safe_dump(config_clean, f, default_flow_style=False, allow_unicode=True)
 
         # Initialize summary
         self._summary = {

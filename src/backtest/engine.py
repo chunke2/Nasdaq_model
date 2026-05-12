@@ -93,6 +93,7 @@ class BacktestEngine:
         train_days: int = 504,
         test_days: int = 126,
         min_train_events: int = 10,
+        factor_builder=None,
     ) -> dict:
         """Walk-forward backtest with rolling retraining.
 
@@ -153,7 +154,14 @@ class BacktestEngine:
                 (price_df.index >= current) & (price_df.index < test_start)
             ]
             model = model_class()
-            model.fit(train_prices, train_ev)
+
+            if factor_builder is not None:
+                # MultiFactorModel: compute factors, fit on factor data
+                f_train = factor_builder(train_prices, train_ev)
+                model.fit(f_train, train_prices)
+            else:
+                # EventStudyModel: fit on price + events directly
+                model.fit(train_prices, train_ev)
 
             # Run backtest on test window
             test_prices = price_df[
@@ -303,16 +311,32 @@ class BacktestEngine:
         trades_df = pd.DataFrame(trades_list)
         return trades_df, equity_curve
 
-    def _safe_predict(self, model: ModelBase, event: pd.Series) -> str:
+    def _safe_predict(
+        self, model: ModelBase, event: pd.Series,
+        factor_df: pd.DataFrame | None = None,
+    ) -> str:
         """Predict direction for a single event. Returns NEUTRAL on failure."""
         try:
-            mini_df = pd.DataFrame([{
-                "date": event["date"],
-                "ticker": event["ticker"],
-                "event_type": event.get("event_type", "earnings"),
-                "surprise_pct": event.get("surprise_pct", 0.0),
-            }])
-            pred = model.predict(mini_df)
+            if factor_df is not None:
+                # MultiFactorModel: use factor values at event date+ticker
+                ticker = str(event["ticker"])
+                evt_date = pd.Timestamp(event["date"])
+                row = factor_df[
+                    (factor_df["ticker"] == ticker)
+                    & (factor_df["date"] == evt_date)
+                ]
+                if row.empty:
+                    return "NEUTRAL"
+                pred = model.predict(row)
+            else:
+                # EventStudyModel: use event info
+                mini_df = pd.DataFrame([{
+                    "date": event["date"],
+                    "ticker": event["ticker"],
+                    "event_type": event.get("event_type", "earnings"),
+                    "surprise_pct": event.get("surprise_pct", 0.0),
+                }])
+                pred = model.predict(mini_df)
             return str(pred.iloc[0]) if len(pred) > 0 else "NEUTRAL"
         except Exception:
             return "NEUTRAL"

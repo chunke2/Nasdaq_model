@@ -93,3 +93,27 @@ NASDAQ Event-Factor Model — chronological experiment records.
 **Next**: Multi-factor regression model (Iteration 6) to enable walk-forward predictions
 
 ---
+
+## [2026-05-12 14:18] Iteration 6: Multi-Factor Regression Model
+
+**Objective**: Build logistic regression model combining multiple factors for forward return direction prediction.
+
+**Changes**:
+- `src/models/regression.py`: MultiFactorModel (logistic/linear), auto-builds X/y from factor+price data, factor attribution
+- `src/utils/experiment_logger.py`: numpy type sanitization for YAML/JSON serialization
+- `src/backtest/engine.py`: walk-forward now accepts factor_builder callback
+- `tests/test_iteration6.py`: time-split validation + prediction accuracy test
+
+**Results**:
+- Model fitted: 759 training samples, 2 features
+- Features: earnings_surprise (coeff=-0.123), momentum_20d (coeff=+0.011)
+- Test predictions: 780 samples evaluated
+- Overall accuracy: 49.2% (baseline: 50.4%, lift: -1.2%)
+- POS prediction accuracy: **78.4%** (when model says POSITIVE, it's right 78% of time)
+- NEG prediction accuracy: 19.6% (model biased toward POSITIVE)
+- Import check: PASSED, Anti-leakage: PASSED
+- Known gap: backtest engine needs refactoring for factor-aware trading
+
+**Next**: Fix backtest factor integration, then macro factors (Iteration 7)
+
+---
