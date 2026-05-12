@@ -72,3 +72,24 @@ NASDAQ Event-Factor Model — chronological experiment records.
 **Next**: Real earnings calendar, macro factors, walk-forward train/test split
 
 ---
+
+## [2026-05-12 14:09] Iteration 5: Real Earnings Calendar + Walk-forward Backtest
+
+**Objective**: Replace proxy earnings detection with real Alpha Vantage calendar; add walk-forward time-split to backtest engine.
+
+**Changes**:
+- `src/data/earnings_calendar.py`: Alpha Vantage EARNINGS endpoint fetcher, Parquet-cached
+- `src/events/earnings.py`: EarningsSurpriseDetector now accepts real_calendar parameter, uses it as primary source
+- `src/backtest/engine.py`: run_walk_forward() method — rolling time-split train/test with retraining
+
+**Results**:
+- Alpha Vantage earnings: 36 real events across 3 tickers (AAPL:121q, MSFT:121q, NVDA:108q)
+- Real calendar detection: 24 events within synthetic price range
+- Walk-forward engine: 2 windows created, correct time-split (no leakage)
+- Import check: PASSED
+- Anti-leakage: PASSED
+- Known gap: walk-forward needs regression model for forward predictions (event study model only predicts past events)
+
+**Next**: Multi-factor regression model (Iteration 6) to enable walk-forward predictions
+
+---

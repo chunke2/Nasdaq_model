@@ -78,10 +78,129 @@ class BacktestEngine:
         self.trades = trades
         self.metrics = bt_metrics.compute_all(equity_curve, trades)
 
+        train_date = pd.Timestamp(events["effective_date"].min())
+        test_date = pd.Timestamp(events["effective_date"].max())
         if self._log_experiment and self._exp_logger:
-            self._record_experiment()
+            self._record_experiment(train_date, test_date)
 
         return {"equity": equity_curve, "trades": trades, "metrics": self.metrics}
+
+    def run_walk_forward(
+        self,
+        model_class,
+        price_df: pd.DataFrame,
+        events_df: pd.DataFrame,
+        train_days: int = 504,
+        test_days: int = 126,
+        min_train_events: int = 10,
+    ) -> dict:
+        """Walk-forward backtest with rolling retraining.
+
+        Splits data by time: train on [t, t+train_days], test on [t+train_days, t+train_days+test_days].
+        Rolls forward by test_days each step. Model is retrained on each window.
+
+        Args:
+            model_class: Callable that returns a new model instance (e.g. EventStudyModel).
+            price_df: Full price DataFrame.
+            events_df: Full events DataFrame.
+            train_days: Trading days in each training window.
+            test_days: Trading days in each test window.
+            min_train_events: Minimum events required in training window.
+
+        Returns:
+            dict with equity, trades, metrics, and window_details.
+        """
+        if events_df.empty:
+            return {"equity": pd.Series(), "trades": pd.DataFrame(), "metrics": {}}
+
+        events = events_df.sort_values("date").copy()
+        events["effective_date"] = pd.to_datetime(events["date"]).dt.normalize()
+
+        all_dates = pd.DatetimeIndex(
+            events["effective_date"].unique()
+        ).sort_values()
+        if len(all_dates) < 2:
+            return {"equity": pd.Series(), "trades": pd.DataFrame(), "metrics": {}}
+
+        min_date = all_dates[0]
+        max_date = all_dates[-1]
+
+        current = min_date
+        all_trades: list[pd.DataFrame] = []
+        equity_segments: list[pd.Series] = []
+        window_log: list[dict] = []
+
+        while current < max_date:
+            train_end = min(current + pd.Timedelta(days=int(train_days * 1.4)), max_date)
+            test_start = train_end
+            test_end = min(test_start + pd.Timedelta(days=int(test_days * 1.4)), max_date)
+
+            train_ev = events[
+                (events["effective_date"] >= current)
+                & (events["effective_date"] < train_end)
+            ]
+            test_ev = events[
+                (events["effective_date"] >= test_start)
+                & (events["effective_date"] <= test_end)
+            ]
+
+            if len(train_ev) < min_train_events or test_ev.empty:
+                current = test_start
+                continue
+
+            # Train model on this window
+            train_prices = price_df[
+                (price_df.index >= current) & (price_df.index < test_start)
+            ]
+            model = model_class()
+            model.fit(train_prices, train_ev)
+
+            # Run backtest on test window
+            test_prices = price_df[
+                (price_df.index >= test_start) & (price_df.index <= test_end)
+            ]
+            window_result = self.run(model, test_prices, test_ev)
+            trades_w = window_result.get("trades", pd.DataFrame())
+            equity_w = window_result.get("equity", pd.Series(dtype=float))
+
+            if not trades_w.empty:
+                all_trades.append(trades_w)
+            if not equity_w.empty and len(equity_w) > 1:
+                equity_segments.append(equity_w)
+
+            window_log.append({
+                "train_start": current.date(),
+                "train_end": train_end.date(),
+                "test_start": test_start.date(),
+                "test_end": test_end.date(),
+                "train_events": len(train_ev),
+                "test_events": len(test_ev),
+                "test_trades": len(trades_w),
+            })
+
+            current = test_start
+
+        if not all_trades:
+            return {"equity": pd.Series(), "trades": pd.DataFrame(), "metrics": {}, "windows": window_log}
+
+        all_trades_df = pd.concat(all_trades).sort_values("entry_date")
+        equity_combined = pd.concat(equity_segments).sort_index()
+        # Remove duplicate index
+        equity_combined = equity_combined[~equity_combined.index.duplicated(keep="first")]
+
+        self.equity = equity_combined
+        self.trades = all_trades_df
+        self.metrics = bt_metrics.compute_all(equity_combined, all_trades_df)
+
+        if self._log_experiment and self._exp_logger:
+            self._record_experiment(min_date, max_date)
+
+        return {
+            "equity": equity_combined,
+            "trades": all_trades_df,
+            "metrics": self.metrics,
+            "windows": window_log,
+        }
 
     def _simulate(
         self,
@@ -213,7 +332,9 @@ class BacktestEngine:
             return None
         return float(available["adj_close"].iloc[-1])
 
-    def _record_experiment(self) -> None:
+    def _record_experiment(
+        self, train_date=None, test_date=None
+    ) -> None:
         """Log backtest results to experiments/."""
         if self._exp_logger is None:
             return
@@ -225,6 +346,10 @@ class BacktestEngine:
             "max_position_pct": self.max_position_pct,
             "factors_used": ["earnings_surprise"],
         }
+        if train_date is not None:
+            cfg["train_period"] = str(train_date)
+        if test_date is not None:
+            cfg["test_period"] = str(test_date)
         exp_id = self._exp_logger.start("backtest", cfg)
         self._exp_logger.log_metrics({
             "sharpe_ratio": self.metrics.get("sharpe_ratio"),

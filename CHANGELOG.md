@@ -125,3 +125,30 @@
 - Synthetic data returns are amplified due to built-in reversal effect
 - Real-data backtest will show more realistic metrics
 - Next: real earnings calendar, macro factors, walk-forward split
+
+---
+
+## [2026-05-12] Iteration 5: Real Earnings Calendar + Walk-forward Backtest
+
+### Added
+- `src/data/earnings_calendar.py`: Alpha Vantage EARNINGS endpoint fetcher with Parquet caching
+- `src/backtest/engine.py`: `run_walk_forward()` — rolling time-split train/test with retraining
+
+### Changed
+- `src/events/earnings.py`: EarningsSurpriseDetector now accepts `real_calendar` parameter
+  - Primary: real Alpha Vantage earnings dates with actual EPS surprise data
+  - Fallback: proxy detection (large returns + volume)
+  - `used_real_calendar` property to check which source was used
+
+### Results
+- **Alpha Vantage earnings**: 36 real events across 3 tickers
+  - AAPL: 121 quarters, MSFT: 121, NVDA: 108
+  - Real EPS surprise data (e.g. MSFT +9.9%, AAPL +6.3%)
+- **Walk-forward**: 2 windows, correct time-split (no leakage)
+- Import check: PASSED
+- Anti-leakage: PASSED
+
+### Known Gap
+- Walk-forward needs regression model for forward predictions
+- EventStudyModel.predict() only works on trained event dates
+- Will be resolved in Iteration 6 (multi-factor regression)
